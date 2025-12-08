@@ -1,0 +1,436 @@
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("Age Of Femboys", "BloodTheme")
+
+local KeyTab = Window:NewTab("Key System")
+local KeySection = KeyTab:NewSection("Key Verification")
+
+local MainTab = nil
+local TeleportTab = nil
+local AbilitiesTab = nil
+local CombatEnhanceTab = nil
+local ESPTab = nil
+local AntiGrabTab = nil
+local AutoMetalSkinTab = nil
+local MobileRapidPunchTab = nil
+
+local incorrectAttempts = 0
+
+local function getNearPlayer(range)
+    local near = {}
+    local lp = game.Players.LocalPlayer
+    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return near end
+    for _, p in pairs(game.Players:GetPlayers()) do
+        if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            if (p.Character.HumanoidRootPart.Position - root.Position).Magnitude <= range then
+                table.insert(near, p)
+            end
+        end
+    end
+    return near
+end
+
+local function unlockTabs()
+    MainTab = Window:NewTab("Main")
+    local CombatSection = MainTab:NewSection("Combat Tools")
+    local UtilitySection = MainTab:NewSection("Utility Tools")
+
+    CombatSection:NewLabel("Essential combat moves")
+    CombatSection:NewKeybind("Normal Punch", "Press to execute a normal punch", Enum.KeyCode.P, function()
+        local args = {
+            [1] = 0,
+            [2] = 0.1,
+            [3] = 1
+        }
+        game:GetService("ReplicatedStorage").Events.Punch:FireServer(unpack(args))
+    end)
+
+    CombatSection:NewKeybind("Heavy Punch", "Press to execute a heavy punch", Enum.KeyCode.X, function()
+        local args = {
+            [1] = 0.4,
+            [2] = 0.1,
+            [3] = 1
+        }
+        game:GetService("ReplicatedStorage").Events.Punch:FireServer(unpack(args))
+    end)
+
+    UtilitySection:NewButton("Infinite Yield", "Open Infinite Yield admin", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+    end)
+
+    UtilitySection:NewKeybind("Toggle UI", "Show/Hide the UI", Enum.KeyCode.K, function()
+        Library:ToggleUI()
+    end)
+
+    TeleportTab = Window:NewTab("Teleports")
+    local TeleportSection = TeleportTab:NewSection("Quick Travel Options")
+    TeleportSection:NewButton("Above Mid", "Teleport above mid (use flight/webs)", function()
+        game.Players.LocalPlayer.Character:PivotTo(CFrame.new(-392, 672, 268))
+    end)
+    TeleportSection:NewButton("Above Motel", "Teleport above motel (use flight/webs)", function()
+        game.Players.LocalPlayer.Character:PivotTo(CFrame.new(-1744, 965, -1357))
+    end)
+    TeleportSection:NewButton("Maid Cafe", "Teleport to maid cafe (use flight/webs)", function()
+        game.Players.LocalPlayer.Character:PivotTo(CFrame.new(-1358, 197, 190))
+    end)
+
+    AbilitiesTab = Window:NewTab("Abilities")
+    local MetalSkinSection = AbilitiesTab:NewSection("Metal Skin")
+    local GodModeSection = AbilitiesTab:NewSection("God Mode")
+
+    MetalSkinSection:NewButton("Activate Metal Skin", "Toggle metal skin ON", function()
+        local args = { [1] = "metalSkin", [2] = true }
+        game:GetService("ReplicatedStorage").Events.Transform:FireServer(unpack(args))
+    end)
+
+    MetalSkinSection:NewButton("Deactivate Metal Skin", "Toggle metal skin OFF", function()
+        local args = { [1] = "metalSkin", [2] = false }
+        game:GetService("ReplicatedStorage").Events.Transform:FireServer(unpack(args))
+    end)
+
+    GodModeSection:NewButton("Activate God Mode (Shit Don't Work Js Looks Cool)", "Temporary invincibility (use in safe zone)", function() end)
+
+    AutoMetalSkinTab = Window:NewTab("Auto Metal Skin")
+    local AutoMetalSkinSection = AutoMetalSkinTab:NewSection("Auto Metal Skin Settings")
+
+    local autoMetalSkinEnabled = false
+    local autoMetalSkinLoop = nil
+
+    AutoMetalSkinSection:NewToggle("Enable Auto Metal Skin", "Automatically reactivates Metal Skin when it expires", function(state)
+        autoMetalSkinEnabled = state
+        if state then
+            autoMetalSkinLoop = game:GetService("RunService").Heartbeat:Connect(function()
+                local character = game.Players.LocalPlayer.Character
+                if character and character:FindFirstChild("Humanoid") then
+                    if not character:GetAttribute("MetalSkin") then
+                        local args = { [1] = "metalSkin", [2] = true }
+                        game:GetService("ReplicatedStorage").Events.Transform:FireServer(unpack(args))
+                    end
+                end
+            end)
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Auto Metal Skin",
+                Text = "Auto Metal Skin has been enabled!",
+                Duration = 3
+            })
+        else
+            if autoMetalSkinLoop then
+                autoMetalSkinLoop:Disconnect()
+                autoMetalSkinLoop = nil
+            end
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Auto Metal Skin",
+                Text = "Auto Metal Skin has been disabled!",
+                Duration = 3
+            })
+        end
+    end)
+
+    AutoMetalSkinSection:NewLabel("Auto Metal Skin will keep your Metal Skin active at all times")
+    AutoMetalSkinSection:NewLabel("Toggle off when not needed to reduce server load")
+
+    CombatEnhanceTab = Window:NewTab("Rapid Punch")
+    local RapidPunchSection = CombatEnhanceTab:NewSection("Rapid Punch")
+
+    RapidPunchSection:NewKeybind("Rapid Heavy Punch", "Press to execute rapid heavy punches", Enum.KeyCode.R, function()
+        local runService = game:GetService("RunService")
+        local punchSpeed = 0.1
+        local punching = true
+        
+        local rapidPunchLoop = runService.Heartbeat:Connect(function()
+            if not punching then
+                rapidPunchLoop:Disconnect()
+                return
+            end
+            
+            local args = {
+                [1] = 0.4,
+                [2] = 0.1,
+                [3] = 1
+            }
+            game:GetService("ReplicatedStorage").Events.Punch:FireServer(unpack(args))
+            wait(punchSpeed)
+        end)
+
+        task.delay(10, function()
+            punching = false
+        end)
+    end)
+
+    MobileRapidPunchTab = Window:NewTab("Mobile Rapid Punch")
+    local MobileRapidPunchSection = MobileRapidPunchTab:NewSection("Mobile Rapid Punch Tool")
+
+    MobileRapidPunchSection:NewButton("Equip Rapid Punch Tool", "Click to equip the Rapid Punch tool", function()
+local tool = Instance.new("Tool")
+tool.Name = "Rapid Punch"
+tool.RequiresHandle = false
+tool.CanBeDropped = false
+tool.Parent = game.Players.LocalPlayer.Backpack
+
+local runService = game:GetService("RunService")
+local punchSpeed = 0.13
+local punching = false
+
+local function startRapidPunch()
+    punching = true
+
+    local rapidPunchLoop = runService.Heartbeat:Connect(function()
+        if not punching then
+            rapidPunchLoop:Disconnect()
+            return
+        end
+
+        local args = {
+            [1] = 0.4,
+            [2] = 0.1,
+            [3] = 1
+        }
+        game:GetService("ReplicatedStorage").Events.Punch:FireServer(unpack(args))
+        wait(punchSpeed)
+    end)
+end
+
+local function stopRapidPunch()
+    punching = false
+end
+
+tool.Activated:Connect(function()
+    startRapidPunch()
+end)
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+
+mouse.Button1Up:Connect(function()
+    stopRapidPunch()
+end)
+
+    end)
+
+    ESPTab = Window:NewTab("ESP")
+    local NameESPSection = ESPTab:NewSection("Name ESP")
+
+    NameESPSection:NewToggle("Toggle Name ESP", "Enable/Disable Name ESP for all players", function(state)
+local players = game:GetService("Players")
+local rs = game:GetService("RunService")
+
+local function createNameESP(player)
+    local function buildBillboard(char)
+        if char:FindFirstChild("NameESP") then return end
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "NameESP"
+        billboard.AlwaysOnTop = true
+        billboard.Size = UDim2.new(0, 100, 0, 20)
+        billboard.StudsOffset = Vector3.new(0, 2, 0)
+        billboard.Adornee = char:WaitForChild("Head")
+        billboard.Parent = char
+
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Text = player.Name
+        nameLabel.Size = UDim2.new(1, 0, 1, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.TextScaled = true
+        nameLabel.TextStrokeTransparency = 0
+        nameLabel.Font = Enum.Font.SourceSansBold
+        nameLabel.Parent = billboard
+
+        local function updateRainbow()
+            local hue = tick() % 5 / 5
+            nameLabel.TextColor3 = Color3.fromHSV(hue, 1, 1)
+        end
+        local conn
+        conn = rs.RenderStepped:Connect(function()
+            if billboard.Parent then
+                updateRainbow()
+            else
+                conn:Disconnect()
+            end
+        end)
+    end
+
+    if player.Character then buildBillboard(player.Character) end
+    player.CharacterAdded:Connect(buildBillboard)
+end
+
+for _,v in pairs(players:GetPlayers()) do
+    if v ~= players.LocalPlayer then createNameESP(v) end
+end
+players.PlayerAdded:Connect(function(p)
+    if p ~= players.LocalPlayer then createNameESP(p) end
+end)
+
+    end)
+
+    local AntiGrabTab = Window:NewTab("Anti Grab")
+    local AntiGrabSection = AntiGrabTab:NewSection("Anti Grab Protection")
+    
+    AntiGrabSection:NewLabel("Prevents other players from grabbing you")
+    AntiGrabSection:NewLabel("using telekinesis or similar abilities")
+    
+    local antiGrabEnabled = false
+    local antiGrabLoop = nil
+    
+    AntiGrabSection:NewToggle("Toggle Anti Grab", "Enable/Disable Anti Grab protection", function(state)
+        antiGrabEnabled = state
+        if state then
+            game:GetService("NetworkClient"):SetOutgoingKBPSLimit(0/0)
+            local r = game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("ToggleTelekinesis")
+            _G.fart = true
+
+            local function startAntiTelekinesis()
+                local c = game.Players.LocalPlayer.Character
+                coroutine.wrap(function()
+                    while _G.fart and c and c:IsDescendantOf(workspace) do
+                        coroutine.wrap(function()
+                            r:InvokeServer(Vector3.new(1, 1, 1), false, c)
+                        end)()
+                        game:GetService("RunService").PreRender:Wait()
+                    end
+                end)()
+            end
+
+            startAntiTelekinesis()
+
+            game.Players.LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+                c = newCharacter
+                startAntiTelekinesis()
+            end)
+        else
+            _G.fart = false
+        end
+    end)
+
+    local TeleTab = Window:NewTab("Tele")
+    local TeleSection = TeleTab:NewSection("Tele Lock [T to activate]")
+
+    TeleSection:NewKeybind("Tele Lock", "T to activate telekinesis lock", Enum.KeyCode.T, function()
+        spawn(function()
+            local LookVector = game.Workspace.Camera.CFrame.LookVector
+            game:GetService("ReplicatedStorage").Events.ToggleTelekinesis:InvokeServer(LookVector, true)
+            game:GetService("ReplicatedStorage").Events.ToggleTelekinesis:InvokeServer(LookVector, false)
+        end)
+    end)
+
+    local TeleReleaseSection = TeleTab:NewSection("Tele Release [C to release]")
+    TeleReleaseSection:NewKeybind("Release Tele", "C to release all tele grabs", Enum.KeyCode.C, function()
+        spawn(function()
+            local plrlist = {};
+            local Players = game:GetService("Players");
+            for i, player in pairs(Players:GetPlayers()) do
+                spawn(function()
+                    game:GetService("ReplicatedStorage").Events.ToggleTelekinesis:InvokeServer(Vector3.new(1, 1, 1), false, game.Players[player.Name].Character);
+                end);
+            end
+        end);
+    end)
+
+    local TeleKillSection = TeleTab:NewSection("Tele Kill [G to tele-kill]")
+    TeleKillSection:NewKeybind("Tele Kill", "G to kill grabbed players", Enum.KeyCode.G, function()
+        spawn(function()
+            local grabbed = {}
+            local root = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p ~= game.Players.LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    if (p.Character.HumanoidRootPart.Position - root.Position).Magnitude <= 99 then
+                        table.insert(grabbed, p)
+                    end
+                end
+            end
+            for _, v in pairs(grabbed) do
+                spawn(function()
+                    local neck = v.Character and v.Character:FindFirstChild("Head") and v.Character.Head:FindFirstChild("Neck")
+                    if neck then neck:Destroy() end
+                    task.wait(0.2)
+                    game:GetService("ReplicatedStorage").Events.ToggleTelekinesis:InvokeServer(Vector3.new(1, 1, 1), false, v.Character)
+                end)
+            end
+        end)
+    end)
+
+    local CarrySection = TeleTab:NewSection("Carry Around Players [H to carry]")
+    CarrySection:NewKeybind("Carry Around Players", "H to carry people in tele-lock", Enum.KeyCode.H, function()
+        spawn(function()
+            if _G.CToggle == false then
+                spawn(function()
+                    local plrlist = getNearPlayer(99)
+                    wait()
+                    _G.CToggle = true
+                    getgenv().CarryP = true
+                    while CarryP do
+                        wait()
+                        spawn(function()
+                            for i, v in pairs(plrlist) do
+                                if v ~= game.Players.LocalPlayer then
+                                    local Xt = game.Players.LocalPlayer.Character.HumanoidRootPart.Position.X
+                                    local Yt = game.Players.LocalPlayer.Character.HumanoidRootPart.Position.Y
+                                    local Zt = game.Players.LocalPlayer.Character.HumanoidRootPart.Position.Z
+                                    if game:GetService("Workspace"):FindFirstChild(v.Name) then
+                                        local hrp = game:GetService("Workspace")[v.Name]:FindFirstChild("HumanoidRootPart")
+                                        if hrp and hrp:FindFirstChild("telekinesisPosition") then
+                                            hrp.telekinesisPosition.Position = Vector3.new(Xt, Yt + 8, Zt + 5)
+                                        end
+                                    end
+                                end
+                            end
+                        end)
+                    end
+                end)
+            else
+                spawn(function()
+                    _G.CToggle = false
+                    plrlist = {}
+                    getgenv().CarryP = false
+                end)
+            end
+        end)
+    end)
+
+    local CreditsTab = Window:NewTab("Credits")
+    local CreditsSection = CreditsTab:NewSection("Owner Of Script")
+    CreditsSection:NewLabel("icrumblecompltelywhenyoucry")
+    CreditsSection:NewButton("Copy Discord Link", "Click to copy the Discord link", function()
+        setclipboard("No longer, im afriad.")
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Discord Link Copied",
+            Text = "The link has been copied to your clipboard!",
+            Duration = 5
+        })
+    end)
+    CreditsSection:NewLabel("")
+
+    MainTab:NewSection("Telekinesis").NewKeybind("Use Telekinesis", "Press 'T' to use telekinesis", Enum.KeyCode.T, function()
+        local LookVector = game.Workspace.Camera.CFrame.LookVector
+        game:GetService("ReplicatedStorage").Events.ToggleTelekinesis:InvokeServer(LookVector, true)
+        task.wait()
+        game:GetService("ReplicatedStorage").Events.ToggleTelekinesis:InvokeServer(LookVector, false)
+    end)
+end
+
+KeySection:NewTextBox("Enter Key", "Type the key to unlock", function(keyInput)
+    if keyInput == "AlphaKey!" then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Access Granted",
+            Text = "Correct key entered!",
+            Duration = 5
+        })
+        unlockTabs()
+        KeyTab:Hide()
+        
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Age Of Femboys",
+            Text = "Age Of Femboys executed, have fun!",
+            Duration = 5
+        })
+    else
+        incorrectAttempts += 1
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Access Denied",
+            Text = "Incorrect key! Attempts: " .. incorrectAttempts,
+            Duration = 5
+        })
+        
+        if incorrectAttempts >= 3 then
+            game.Players.LocalPlayer:Kick("Bloody Skids")
+        end
+    end
+end)
